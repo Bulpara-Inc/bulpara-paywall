@@ -7,12 +7,20 @@ data class PaywallConfig(
     val productIds: ProductIds,
     val branding: PaywallBranding,
     val benefits: List<String>,
+    val fallbackPricing: FallbackPricing = FallbackPricing(),
     val verificationService: BillingVerificationService? = null,
 )
 
 data class ProductIds(
     val monthly: String,
     val annual: String,
+)
+
+data class FallbackPricing(
+    val monthlyPrice: String = "",
+    val annualPrice: String = "",
+    val annualHasFreeTrial: Boolean = false,
+    val trialPeriod: String = "",
 )
 
 data class PaywallBranding(

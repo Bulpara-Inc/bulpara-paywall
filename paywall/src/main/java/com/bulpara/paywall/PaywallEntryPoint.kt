@@ -23,7 +23,7 @@ object PaywallEntryPoint {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return PaywallViewModel(
                     billingManager = billingManager,
-                    productIds = config.productIds,
+                    config = config,
                 ) as T
             }
         }

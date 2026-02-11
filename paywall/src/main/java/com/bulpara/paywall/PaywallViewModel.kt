@@ -34,7 +34,7 @@ data class PaywallUiState(
 
 class PaywallViewModel(
     private val billingManager: BillingManager,
-    private val productIds: ProductIds,
+    private val config: PaywallConfig,
 ) : ViewModel() {
 
     private val _selectedPlan = MutableStateFlow(PaywallPlan.ANNUAL)
@@ -46,14 +46,16 @@ class PaywallViewModel(
         billingManager.billingState,
         billingManager.products,
     ) { plan, premium, billingState, products ->
+        val productIds = config.productIds
+        val fallback = config.fallbackPricing
         val monthly = products.find { it.productId == productIds.monthly }
         val annual = products.find { it.productId == productIds.annual }
 
-        val monthlyPrice = monthly?.let { billingManager.getFormattedPrice(it) } ?: ""
-        val annualPrice = annual?.let { billingManager.getFormattedPrice(it) } ?: ""
+        val monthlyPrice = monthly?.let { billingManager.getFormattedPrice(it) } ?: fallback.monthlyPrice
+        val annualPrice = annual?.let { billingManager.getFormattedPrice(it) } ?: fallback.annualPrice
         val annualMonthly = annual?.let { billingManager.getMonthlyEquivalent(it) }
-        val hasTrial = annual?.let { billingManager.hasFreeTrial(it) } ?: false
-        val trialPeriod = annual?.let { billingManager.getTrialPeriod(it) } ?: ""
+        val hasTrial = annual?.let { billingManager.hasFreeTrial(it) } ?: fallback.annualHasFreeTrial
+        val trialPeriod = annual?.let { billingManager.getTrialPeriod(it) } ?: fallback.trialPeriod
 
         val ctaText = when {
             plan == PaywallPlan.ANNUAL && hasTrial -> "Start Free Trial"
