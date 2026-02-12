@@ -7,6 +7,8 @@ data class PaywallConfig(
     val productIds: ProductIds,
     val branding: PaywallBranding,
     val benefits: List<String>,
+    val termsUrl: String = "",
+    val privacyUrl: String = "",
     val fallbackPricing: FallbackPricing = FallbackPricing(),
     val verificationService: BillingVerificationService? = null,
 )

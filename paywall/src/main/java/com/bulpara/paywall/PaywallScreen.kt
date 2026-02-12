@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,9 +34,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.bulpara.paywall.internal.IconSize
 import com.bulpara.paywall.internal.PaywallPrimaryButton
@@ -250,13 +253,41 @@ private fun PaywallContent(
             textAlign = TextAlign.Center,
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        if (config.termsUrl.isNotEmpty() || config.privacyUrl.isNotEmpty()) {
+            val uriHandler = LocalUriHandler.current
 
-        Text(
-            text = "Terms of Use \u2022 Privacy Policy",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.4f),
-            textAlign = TextAlign.Center,
-        )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (config.termsUrl.isNotEmpty()) {
+                    Text(
+                        text = "Terms of Use",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.5f),
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier.clickable { uriHandler.openUri(config.termsUrl) },
+                    )
+                }
+                if (config.termsUrl.isNotEmpty() && config.privacyUrl.isNotEmpty()) {
+                    Text(
+                        text = " \u2022 ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.4f),
+                    )
+                }
+                if (config.privacyUrl.isNotEmpty()) {
+                    Text(
+                        text = "Privacy Policy",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.5f),
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier.clickable { uriHandler.openUri(config.privacyUrl) },
+                    )
+                }
+            }
+        }
     }
 }
