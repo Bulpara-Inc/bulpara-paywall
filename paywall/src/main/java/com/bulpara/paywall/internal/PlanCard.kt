@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -91,12 +92,20 @@ internal fun PlanCard(
 
             Spacer(modifier = Modifier.height(Spacing.sm))
 
+            val priceFontSize = when {
+                price.length > 12 -> 16.sp
+                price.length > 8 -> 20.sp
+                else -> 28.sp
+            }
             Text(
                 text = price,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                fontSize = 28.sp,
+                fontSize = priceFontSize,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
             Text(
                 text = period,

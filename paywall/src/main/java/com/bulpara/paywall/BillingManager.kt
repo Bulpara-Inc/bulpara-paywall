@@ -256,7 +256,9 @@ class BillingManager(
         if (phase.billingPeriod == "P1Y") {
             val monthlyMicros = phase.priceAmountMicros / 12
             val monthlyDollars = monthlyMicros / 1_000_000.0
-            return "$${String.format("%.2f", monthlyDollars)}/month"
+            val currencyCode = phase.priceCurrencyCode
+            val formatted = String.format("%.2f", monthlyDollars)
+            return "$formatted $currencyCode/mo"
         }
         return null
     }
@@ -276,7 +278,11 @@ private fun String.toReadablePeriod(): String {
     return when {
         endsWith("D") -> {
             val days = removePrefix("P").removeSuffix("D").toIntOrNull() ?: return this
-            "$days days"
+            "$days day${if (days > 1) "s" else ""}"
+        }
+        endsWith("W") -> {
+            val weeks = removePrefix("P").removeSuffix("W").toIntOrNull() ?: return this
+            "$weeks week${if (weeks > 1) "s" else ""}"
         }
         endsWith("M") && !contains("T") -> {
             val months = removePrefix("P").removeSuffix("M").toIntOrNull() ?: return this
