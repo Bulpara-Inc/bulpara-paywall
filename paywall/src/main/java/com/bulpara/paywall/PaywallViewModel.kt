@@ -70,7 +70,7 @@ class PaywallViewModel(
         PaywallUiState(
             selectedPlan = plan,
             isPremium = premium,
-            isLoading = false, // Never block UI — show fallback prices while connecting
+            isLoading = products.isEmpty() && billingState !is BillingState.Error,
             billingState = billingState,
             monthlyProduct = monthly,
             annualProduct = annual,
@@ -84,7 +84,7 @@ class PaywallViewModel(
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.Eagerly,
         initialValue = PaywallUiState(),
     )
 
