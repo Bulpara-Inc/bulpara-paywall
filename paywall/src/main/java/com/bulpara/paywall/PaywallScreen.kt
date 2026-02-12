@@ -1,8 +1,17 @@
 package com.bulpara.paywall
 
 import android.app.Activity
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,15 +34,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +59,7 @@ import com.bulpara.paywall.internal.PaywallPrimaryButton
 import com.bulpara.paywall.internal.PaywallTextButton
 import com.bulpara.paywall.internal.PlanCard
 import com.bulpara.paywall.internal.Spacing
+import kotlinx.coroutines.delay
 
 @Composable
 fun PaywallScreen(
@@ -55,10 +70,17 @@ fun PaywallScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
 
-    if (uiState.isPremium && uiState.billingState is BillingState.PurchaseSuccess) {
-        onDismiss()
-        return
+    val showSuccess = uiState.isPremium && uiState.billingState is BillingState.PurchaseSuccess
+
+    // Auto-dismiss after showing success screen
+    LaunchedEffect(showSuccess) {
+        if (showSuccess) {
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            delay(2500)
+            onDismiss()
+        }
     }
 
     val gradient = Brush.verticalGradient(config.branding.gradientColors)
@@ -68,70 +90,94 @@ fun PaywallScreen(
             .fillMaxSize()
             .background(gradient),
     ) {
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = Color.White)
-                }
-            }
-
-            uiState.error != null && uiState.monthlyProduct == null -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(Spacing.xl),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        text = "Unable to load subscription info",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    PaywallPrimaryButton(
-                        text = "Retry",
-                        onClick = { viewModel.retryConnection() },
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.sm))
-                    PaywallTextButton(
-                        text = "Maybe Later",
-                        onClick = onDismiss,
-                    )
-                }
-            }
-
-            else -> {
-                PaywallContent(
-                    config = config,
-                    uiState = uiState,
-                    onSelectPlan = viewModel::selectPlan,
-                    onPurchase = {
-                        (context as? Activity)?.let { activity ->
-                            viewModel.purchaseSelectedPlan(activity)
-                        }
-                    },
-                    onDismiss = onDismiss,
-                )
-            }
+        // Success overlay
+        AnimatedVisibility(
+            visible = showSuccess,
+            enter = fadeIn(animationSpec = tween(400)),
+        ) {
+            PurchaseSuccessContent(
+                title = config.branding.title,
+                planName = when (uiState.selectedPlan) {
+                    PaywallPlan.ANNUAL -> "Annual Plan"
+                    PaywallPlan.MONTHLY -> "Monthly Plan"
+                },
+                onDismiss = onDismiss,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
 
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding()
-                .padding(Spacing.sm),
+        // Main paywall content (hidden when success is showing)
+        AnimatedVisibility(
+            visible = !showSuccess,
+            exit = fadeOut(animationSpec = tween(300)),
         ) {
-            Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "Dismiss",
-                tint = Color.White,
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                when {
+                    uiState.isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(color = Color.White)
+                        }
+                    }
+
+                    uiState.error != null && uiState.monthlyProduct == null -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(Spacing.xl),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Text(
+                                text = "Unable to load subscription info",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.md))
+                            PaywallPrimaryButton(
+                                text = "Retry",
+                                onClick = { viewModel.retryConnection() },
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.sm))
+                            PaywallTextButton(
+                                text = "Maybe Later",
+                                onClick = onDismiss,
+                            )
+                        }
+                    }
+
+                    else -> {
+                        PaywallContent(
+                            config = config,
+                            uiState = uiState,
+                            onSelectPlan = viewModel::selectPlan,
+                            onPurchase = {
+                                (context as? Activity)?.let { activity ->
+                                    viewModel.purchaseSelectedPlan(activity)
+                                }
+                            },
+                            onDismiss = onDismiss,
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(Spacing.sm),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Dismiss",
+                        tint = Color.White,
+                    )
+                }
+            }
         }
     }
 }
@@ -285,6 +331,77 @@ private fun PaywallContent(
                         color = Color.White.copy(alpha = 0.5f),
                         textDecoration = TextDecoration.Underline,
                         modifier = Modifier.clickable { uriHandler.openUri(config.privacyUrl) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PurchaseSuccessContent(
+    title: String,
+    planName: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var visible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        visible = true
+    }
+
+    Box(
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AnimatedVisibility(
+                visible = visible,
+                enter = scaleIn(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
+                ) + fadeIn(animationSpec = tween(300)),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(80.dp),
+                    tint = Color.White,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.lg))
+
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(animationSpec = tween(400, delayMillis = 200)),
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Welcome to $title!",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Spacer(modifier = Modifier.height(Spacing.sm))
+
+                    Text(
+                        text = "Your $planName is active",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.8f),
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
