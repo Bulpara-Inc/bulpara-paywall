@@ -1,6 +1,7 @@
 package com.bulpara.paywall
 
 import android.app.Activity
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.ProductDetails
@@ -38,7 +39,7 @@ class PaywallViewModel(
 ) : ViewModel() {
 
     init {
-        // Ensure billing connection is active when paywall is shown
+        Log.d(TAG, "PaywallViewModel created — billingState: ${billingManager.billingState.value}, products: ${billingManager.products.value.size}")
         billingManager.retryConnection()
     }
 
@@ -51,6 +52,7 @@ class PaywallViewModel(
         billingManager.billingState,
         billingManager.products,
     ) { plan, premium, billingState, products ->
+        Log.d(TAG, "combine emit — billingState: $billingState, products: ${products.size}, premium: $premium")
         val productIds = config.productIds
         val fallback = config.fallbackPricing
         val monthly = products.find { it.productId == productIds.monthly }
@@ -105,5 +107,9 @@ class PaywallViewModel(
 
     fun retryConnection() {
         billingManager.retryConnection()
+    }
+
+    companion object {
+        private const val TAG = "BulparaPaywall"
     }
 }

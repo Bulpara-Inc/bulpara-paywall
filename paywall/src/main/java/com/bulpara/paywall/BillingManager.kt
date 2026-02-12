@@ -2,6 +2,7 @@ package com.bulpara.paywall
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -29,6 +30,7 @@ class BillingManager(
 ) : PurchasesUpdatedListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var connectionTimeoutJob: kotlinx.coroutines.Job? = null
 
     private val _billingState = MutableStateFlow<BillingState>(BillingState.Disconnected)
     val billingState: StateFlow<BillingState> = _billingState.asStateFlow()
@@ -47,7 +49,11 @@ class BillingManager(
 
     private val premiumProducts = setOf(productIds.monthly, productIds.annual)
 
-    private var billingClient: BillingClient = BillingClient.newBuilder(context)
+    private val appContext = context.applicationContext
+
+    private var billingClient: BillingClient = buildClient()
+
+    private fun buildClient(): BillingClient = BillingClient.newBuilder(appContext)
         .setListener(this)
         .enablePendingPurchases(
             PendingPurchasesParams.newBuilder()
@@ -58,14 +64,33 @@ class BillingManager(
         .build()
 
     fun startConnection() {
+        Log.d(TAG, "startConnection() called — current state: ${_billingState.value}")
         if (_billingState.value is BillingState.Connected ||
             _billingState.value is BillingState.Connecting
-        ) return
+        ) {
+            Log.d(TAG, "startConnection() SKIPPED — already ${_billingState.value}")
+            return
+        }
 
         _billingState.value = BillingState.Connecting
 
+        // Guard against BillingClient silently hanging (common on first install)
+        connectionTimeoutJob?.cancel()
+        connectionTimeoutJob = scope.launch {
+            delay(CONNECTION_TIMEOUT_MS)
+            if (_billingState.value is BillingState.Connecting) {
+                Log.d(TAG, "Connection timed out after ${CONNECTION_TIMEOUT_MS}ms — rebuilding client")
+                _billingState.value = BillingState.Disconnected
+                try { billingClient.endConnection() } catch (_: Exception) {}
+                billingClient = buildClient()
+                startConnection()
+            }
+        }
+
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
+                connectionTimeoutJob?.cancel()
+                Log.d(TAG, "onBillingSetupFinished — responseCode: ${billingResult.responseCode}, message: ${billingResult.debugMessage}")
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     _billingState.value = BillingState.Connected
                     scope.launch { queryProductDetails() }
@@ -78,6 +103,8 @@ class BillingManager(
             }
 
             override fun onBillingServiceDisconnected() {
+                connectionTimeoutJob?.cancel()
+                Log.d(TAG, "onBillingServiceDisconnected — scheduling reconnect in ${RECONNECT_DELAY_MS}ms")
                 _billingState.value = BillingState.Disconnected
                 scope.launch {
                     delay(RECONNECT_DELAY_MS)
@@ -92,6 +119,7 @@ class BillingManager(
     }
 
     fun retryConnection() {
+        Log.d(TAG, "retryConnection() called — state: ${_billingState.value}, products: ${_products.value.size}")
         if (_billingState.value !is BillingState.Connected) {
             startConnection()
         } else if (_products.value.isEmpty()) {
@@ -100,6 +128,7 @@ class BillingManager(
     }
 
     private suspend fun queryProductDetails() {
+        Log.d(TAG, "queryProductDetails() called — querying: [${productIds.monthly}, ${productIds.annual}]")
         val productList = listOf(
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(productIds.monthly)
@@ -116,8 +145,11 @@ class BillingManager(
             .build()
 
         billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+            Log.d(TAG, "queryProductDetails() result — responseCode: ${billingResult.responseCode}, products: ${productDetailsList.size}, ids: ${productDetailsList.map { it.productId }}")
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 _products.value = productDetailsList
+            } else {
+                Log.e(TAG, "queryProductDetails() FAILED — ${billingResult.debugMessage}")
             }
         }
     }
@@ -270,7 +302,9 @@ class BillingManager(
     }
 
     companion object {
+        private const val TAG = "BulparaPaywall"
         private const val RECONNECT_DELAY_MS = 3000L
+        private const val CONNECTION_TIMEOUT_MS = 10_000L
     }
 }
 
