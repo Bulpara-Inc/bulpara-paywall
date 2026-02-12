@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 
 class BillingManager(
     context: Context,
-    private val productIds: ProductIds,
+    internal val productIds: ProductIds,
     private val verificationService: BillingVerificationService? = null,
 ) : PurchasesUpdatedListener {
 
