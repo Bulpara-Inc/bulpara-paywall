@@ -37,6 +37,11 @@ class PaywallViewModel(
     private val config: PaywallConfig,
 ) : ViewModel() {
 
+    init {
+        // Ensure billing connection is active when paywall is shown
+        billingManager.retryConnection()
+    }
+
     private val _selectedPlan = MutableStateFlow(PaywallPlan.ANNUAL)
     val selectedPlan: StateFlow<PaywallPlan> = _selectedPlan.asStateFlow()
 
@@ -65,7 +70,7 @@ class PaywallViewModel(
         PaywallUiState(
             selectedPlan = plan,
             isPremium = premium,
-            isLoading = billingState is BillingState.Connecting,
+            isLoading = false, // Never block UI — show fallback prices while connecting
             billingState = billingState,
             monthlyProduct = monthly,
             annualProduct = annual,
