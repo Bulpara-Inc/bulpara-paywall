@@ -28,4 +28,32 @@ object PaywallEntryPoint {
             }
         }
     }
+
+    fun createTieredBillingManager(
+        context: Context,
+        config: TieredPaywallConfig,
+    ): BillingManager {
+        val manager = BillingManager(
+            context = context.applicationContext,
+            productIds = ProductIds("", ""),
+            verificationService = config.verificationService,
+        )
+        manager.configureTiers(config.tiers)
+        return manager
+    }
+
+    fun createTieredViewModelFactory(
+        billingManager: BillingManager,
+        config: TieredPaywallConfig,
+    ): ViewModelProvider.Factory {
+        return object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return TieredPaywallViewModel(
+                    billingManager = billingManager,
+                    config = config,
+                ) as T
+            }
+        }
+    }
 }
