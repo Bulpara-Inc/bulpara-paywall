@@ -30,10 +30,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -57,16 +57,28 @@ fun PremiumPromoCard(
     val annualProduct = products.find { it.productId == billingManager.productIds.annual }
 
     val subtitle = when {
-        annualProduct == null -> null
-        billingManager.hasFreeTrial(annualProduct) -> {
+        // Old single-tier mode: annual product found with free trial
+        annualProduct != null && billingManager.hasFreeTrial(annualProduct) -> {
             val trial = billingManager.getTrialPeriod(annualProduct)
             val price = billingManager.getFormattedPrice(annualProduct)
             "$trial free trial \u2022 $price/year"
         }
-        else -> {
+        // Old single-tier mode: annual product found without trial
+        annualProduct != null -> {
             val price = billingManager.getFormattedPrice(annualProduct)
             "$price/year"
         }
+        // Tiered mode: productIds empty but products loaded — show cheapest monthly
+        products.isNotEmpty() -> {
+            val cheapest = products.mapNotNull { product ->
+                val micros = billingManager.getPriceAmountMicrosForPeriod(product, BillingPeriod.MONTHLY)
+                val formatted = billingManager.getFormattedPriceForPeriod(product, BillingPeriod.MONTHLY)
+                if (micros != null && formatted != null) micros to formatted else null
+            }.minByOrNull { it.first }?.second
+
+            if (cheapest != null) "Starting at $cheapest/mo" else null
+        }
+        else -> null
     }
 
     val gradient = Brush.horizontalGradient(config.gradientColors)
