@@ -198,6 +198,10 @@ class BillingManager(
                             !it.isAcknowledged
                     }
                     .forEach { purchase -> acknowledgePurchase(purchase) }
+
+                // Re-verify acknowledged purchases with server so the
+                // backend always has the purchase_token → user_id mapping
+                activePurchase?.let { verifyWithServer(it) }
             }
         }
     }
