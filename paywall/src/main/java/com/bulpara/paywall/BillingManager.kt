@@ -134,10 +134,8 @@ class BillingManager(
 
     fun configureTiers(tiers: List<PaywallTier>) {
         tiers.forEach { tier ->
-            tierProductMap[tier.monthlyProductId] = tier.name
-            tierProductMap[tier.annualProductId] = tier.name
-            premiumProducts.add(tier.monthlyProductId)
-            premiumProducts.add(tier.annualProductId)
+            tierProductMap[tier.productId] = tier.name
+            premiumProducts.add(tier.productId)
         }
         if (_billingState.value is BillingState.Connected) {
             scope.launch { queryProductDetails() }
@@ -340,6 +338,59 @@ class BillingManager(
             ?.pricingPhaseList
             ?.lastOrNull()
             ?.priceAmountMicros
+    }
+
+    // --- Base-plan-aware helpers (for tiered paywall with 1 subscription per tier) ---
+
+    fun getOfferForPeriod(
+        productDetails: ProductDetails,
+        period: BillingPeriod,
+    ): ProductDetails.SubscriptionOfferDetails? {
+        val targetPeriod = when (period) {
+            BillingPeriod.MONTHLY -> "P1M"
+            BillingPeriod.ANNUAL -> "P1Y"
+        }
+        return productDetails.subscriptionOfferDetails?.firstOrNull { offer ->
+            offer.pricingPhases.pricingPhaseList.any { phase ->
+                phase.billingPeriod == targetPeriod && phase.priceAmountMicros > 0
+            }
+        }
+    }
+
+    fun getFormattedPriceForPeriod(
+        productDetails: ProductDetails,
+        period: BillingPeriod,
+    ): String? {
+        val offer = getOfferForPeriod(productDetails, period) ?: return null
+        return offer.pricingPhases.pricingPhaseList
+            .lastOrNull { it.priceAmountMicros > 0 }
+            ?.formattedPrice
+    }
+
+    fun getPriceAmountMicrosForPeriod(
+        productDetails: ProductDetails,
+        period: BillingPeriod,
+    ): Long? {
+        val offer = getOfferForPeriod(productDetails, period) ?: return null
+        return offer.pricingPhases.pricingPhaseList
+            .lastOrNull { it.priceAmountMicros > 0 }
+            ?.priceAmountMicros
+    }
+
+    fun launchPurchase(activity: Activity, productDetails: ProductDetails, period: BillingPeriod) {
+        val offer = getOfferForPeriod(productDetails, period)
+        if (offer != null) {
+            val params = BillingFlowParams.ProductDetailsParams.newBuilder()
+                .setProductDetails(productDetails)
+                .setOfferToken(offer.offerToken)
+                .build()
+            val flowParams = BillingFlowParams.newBuilder()
+                .setProductDetailsParamsList(listOf(params))
+                .build()
+            billingClient.launchBillingFlow(activity, flowParams)
+        } else {
+            launchPurchase(activity, productDetails)
+        }
     }
 
     companion object {

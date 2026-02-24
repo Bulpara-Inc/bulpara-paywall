@@ -13,8 +13,7 @@ data class TieredPaywallConfig(
 data class PaywallTier(
     val name: String,
     val badge: String? = null,
-    val monthlyProductId: String,
-    val annualProductId: String,
+    val productId: String,
     val benefits: List<String>,
     val creditsLabel: String? = null,
     val fallbackMonthlyPrice: String = "",

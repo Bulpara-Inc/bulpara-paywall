@@ -62,17 +62,16 @@ class TieredPaywallViewModel(
         val isPremium = activeTier != null || billingManager.isPremium.value
 
         val tierDisplays = config.tiers.map { tier ->
-            val monthlyProduct = products.find { it.productId == tier.monthlyProductId }
-            val annualProduct = products.find { it.productId == tier.annualProductId }
+            val product = products.find { it.productId == tier.productId }
 
             val (price, periodLabel) = when (period) {
                 BillingPeriod.MONTHLY -> {
-                    val p = monthlyProduct?.let { billingManager.getFormattedPrice(it) }
+                    val p = product?.let { billingManager.getFormattedPriceForPeriod(it, BillingPeriod.MONTHLY) }
                         ?: tier.fallbackMonthlyPrice
                     p to "/month"
                 }
                 BillingPeriod.ANNUAL -> {
-                    val p = annualProduct?.let { billingManager.getFormattedPrice(it) }
+                    val p = product?.let { billingManager.getFormattedPriceForPeriod(it, BillingPeriod.ANNUAL) }
                         ?: tier.fallbackAnnualPrice
                     p to "/year"
                 }
@@ -132,15 +131,11 @@ class TieredPaywallViewModel(
 
     fun purchaseSelectedTier(activity: Activity) {
         val tier = config.tiers.getOrNull(_selectedTierIndex.value) ?: return
-        val productId = when (_billingPeriod.value) {
-            BillingPeriod.MONTHLY -> tier.monthlyProductId
-            BillingPeriod.ANNUAL -> tier.annualProductId
-        }
-        val product = billingManager.getProductDetails(productId) ?: run {
+        val product = billingManager.getProductDetails(tier.productId) ?: run {
             billingManager.retryConnection()
             return
         }
-        billingManager.launchPurchase(activity, product)
+        billingManager.launchPurchase(activity, product, _billingPeriod.value)
     }
 
     fun retryConnection() {
@@ -152,10 +147,9 @@ class TieredPaywallViewModel(
         products: List<ProductDetails>,
     ): Int? {
         tier ?: return null
-        val monthly = products.find { it.productId == tier.monthlyProductId } ?: return null
-        val annual = products.find { it.productId == tier.annualProductId } ?: return null
-        val monthlyMicros = billingManager.getPriceAmountMicros(monthly) ?: return null
-        val annualMicros = billingManager.getPriceAmountMicros(annual) ?: return null
+        val product = products.find { it.productId == tier.productId } ?: return null
+        val monthlyMicros = billingManager.getPriceAmountMicrosForPeriod(product, BillingPeriod.MONTHLY) ?: return null
+        val annualMicros = billingManager.getPriceAmountMicrosForPeriod(product, BillingPeriod.ANNUAL) ?: return null
 
         val yearlyCostMonthly = monthlyMicros * 12
         if (yearlyCostMonthly <= 0) return null

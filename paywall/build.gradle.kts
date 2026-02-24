@@ -45,7 +45,7 @@ afterEvaluate {
             register<MavenPublication>("release") {
                 groupId = "com.bulpara"
                 artifactId = "paywall"
-                version = "2.0.0"
+                version = "2.1.0"
 
                 from(components["release"])
             }
