@@ -41,6 +41,8 @@ internal fun TierCard(
     badge: String?,
     price: String,
     period: String,
+    monthlyEquivalent: String?,
+    trialPeriod: String?,
     creditsLabel: String?,
     benefits: List<String>,
     isSelected: Boolean,
@@ -103,6 +105,31 @@ internal fun TierCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.7f),
             )
+
+            if (monthlyEquivalent != null) {
+                Text(
+                    text = "~$monthlyEquivalent",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.5f),
+                )
+            }
+
+            if (trialPeriod != null) {
+                Spacer(modifier = Modifier.height(Spacing.xs))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(CornerRadius.full))
+                        .background(accentColor.copy(alpha = 0.2f))
+                        .padding(horizontal = Spacing.sm, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = "$trialPeriod free trial",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accentColor,
+                    )
+                }
+            }
 
             if (creditsLabel != null) {
                 Spacer(modifier = Modifier.height(Spacing.xs))

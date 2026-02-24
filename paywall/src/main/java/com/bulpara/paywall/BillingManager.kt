@@ -377,6 +377,33 @@ class BillingManager(
             ?.priceAmountMicros
     }
 
+    fun getTrialPeriodForPeriod(
+        productDetails: ProductDetails,
+        period: BillingPeriod,
+    ): String? {
+        val offer = getOfferForPeriod(productDetails, period) ?: return null
+        val trialPhase = offer.pricingPhases.pricingPhaseList
+            .firstOrNull { it.priceAmountMicros == 0L }
+            ?: return null
+        return trialPhase.billingPeriod.toReadablePeriod()
+    }
+
+    fun getMonthlyEquivalentForPeriod(
+        productDetails: ProductDetails,
+        period: BillingPeriod,
+    ): String? {
+        if (period != BillingPeriod.ANNUAL) return null
+        val micros = getPriceAmountMicrosForPeriod(productDetails, BillingPeriod.ANNUAL) ?: return null
+        val offer = getOfferForPeriod(productDetails, BillingPeriod.ANNUAL) ?: return null
+        val currencyCode = offer.pricingPhases.pricingPhaseList
+            .lastOrNull { it.priceAmountMicros > 0 }
+            ?.priceCurrencyCode ?: return null
+        val monthlyMicros = micros / 12
+        val monthlyAmount = monthlyMicros / 1_000_000.0
+        val formatted = String.format("%.2f", monthlyAmount)
+        return "$formatted $currencyCode/mo"
+    }
+
     fun launchPurchase(activity: Activity, productDetails: ProductDetails, period: BillingPeriod) {
         val offer = getOfferForPeriod(productDetails, period)
         if (offer != null) {

@@ -227,6 +227,8 @@ private fun TieredPaywallContent(
                     badge = tier.badge,
                     price = tier.price,
                     period = tier.period,
+                    monthlyEquivalent = tier.monthlyEquivalent,
+                    trialPeriod = tier.trialPeriod,
                     creditsLabel = tier.creditsLabel,
                     benefits = tier.benefits,
                     isSelected = index == uiState.selectedTierIndex,

@@ -18,6 +18,8 @@ data class TierDisplayData(
     val badge: String?,
     val price: String,
     val period: String,
+    val monthlyEquivalent: String?,
+    val trialPeriod: String?,
     val creditsLabel: String?,
     val benefits: List<String>,
     val isCurrentPlan: Boolean,
@@ -77,11 +79,19 @@ class TieredPaywallViewModel(
                 }
             }
 
+            val monthlyEquivalent = if (period == BillingPeriod.ANNUAL) {
+                product?.let { billingManager.getMonthlyEquivalentForPeriod(it, BillingPeriod.ANNUAL) }
+            } else null
+
+            val trialPeriod = product?.let { billingManager.getTrialPeriodForPeriod(it, period) }
+
             TierDisplayData(
                 name = tier.name,
                 badge = tier.badge,
                 price = price,
                 period = periodLabel,
+                monthlyEquivalent = monthlyEquivalent,
+                trialPeriod = trialPeriod,
                 creditsLabel = tier.creditsLabel,
                 benefits = tier.benefits,
                 isCurrentPlan = activeTier == tier.name,
