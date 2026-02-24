@@ -55,7 +55,7 @@ internal fun TierCard(
         label = "tier_bg",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isSelected) Color.White else Color.White.copy(alpha = 0.2f),
+        targetValue = if (isSelected) accentColor else Color.White.copy(alpha = 0.2f),
         label = "tier_border",
     )
 
