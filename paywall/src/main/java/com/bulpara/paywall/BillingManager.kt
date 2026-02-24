@@ -41,13 +41,18 @@ class BillingManager(
     private val _products = MutableStateFlow<List<ProductDetails>>(emptyList())
     val products: StateFlow<List<ProductDetails>> = _products.asStateFlow()
 
+    private val _activeTier = MutableStateFlow<String?>(null)
+    val activeTier: StateFlow<String?> = _activeTier.asStateFlow()
+
+    private val tierProductMap = mutableMapOf<String, String>()
+
     val monthlyProduct: ProductDetails?
         get() = _products.value.find { it.productId == productIds.monthly }
 
     val annualProduct: ProductDetails?
         get() = _products.value.find { it.productId == productIds.annual }
 
-    private val premiumProducts = setOf(productIds.monthly, productIds.annual)
+    private val premiumProducts = mutableSetOf(productIds.monthly, productIds.annual)
 
     private val appContext = context.applicationContext
 
@@ -127,18 +132,34 @@ class BillingManager(
         }
     }
 
+    fun configureTiers(tiers: List<PaywallTier>) {
+        tiers.forEach { tier ->
+            tierProductMap[tier.monthlyProductId] = tier.name
+            tierProductMap[tier.annualProductId] = tier.name
+            premiumProducts.add(tier.monthlyProductId)
+            premiumProducts.add(tier.annualProductId)
+        }
+        if (_billingState.value is BillingState.Connected) {
+            scope.launch { queryProductDetails() }
+        }
+    }
+
     private suspend fun queryProductDetails() {
-        Log.d(TAG, "queryProductDetails() called — querying: [${productIds.monthly}, ${productIds.annual}]")
-        val productList = listOf(
+        val allProductIds = buildSet {
+            if (productIds.monthly.isNotEmpty()) add(productIds.monthly)
+            if (productIds.annual.isNotEmpty()) add(productIds.annual)
+            addAll(tierProductMap.keys)
+        }
+
+        if (allProductIds.isEmpty()) return
+
+        Log.d(TAG, "queryProductDetails() called — querying: $allProductIds")
+        val productList = allProductIds.map { id ->
             QueryProductDetailsParams.Product.newBuilder()
-                .setProductId(productIds.monthly)
+                .setProductId(id)
                 .setProductType(BillingClient.ProductType.SUBS)
-                .build(),
-            QueryProductDetailsParams.Product.newBuilder()
-                .setProductId(productIds.annual)
-                .setProductType(BillingClient.ProductType.SUBS)
-                .build(),
-        )
+                .build()
+        }
 
         val params = QueryProductDetailsParams.newBuilder()
             .setProductList(productList)
@@ -163,11 +184,15 @@ class BillingManager(
                 .build(),
         ) { billingResult, purchaseList ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                val hasActiveSub = purchaseList.any { purchase ->
+                val activePurchase = purchaseList.firstOrNull { purchase ->
                     purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
                         purchase.products.any { it in premiumProducts }
                 }
-                _isPremium.value = hasActiveSub
+                _isPremium.value = activePurchase != null
+
+                _activeTier.value = activePurchase?.products
+                    ?.firstOrNull { it in tierProductMap }
+                    ?.let { tierProductMap[it] }
 
                 purchaseList
                     .filter {
@@ -208,6 +233,9 @@ class BillingManager(
                 purchases?.forEach { purchase ->
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
                         _isPremium.value = true
+                        _activeTier.value = purchase.products
+                            .firstOrNull { it in tierProductMap }
+                            ?.let { tierProductMap[it] }
                         _billingState.value = BillingState.PurchaseSuccess
                         if (!purchase.isAcknowledged) {
                             acknowledgePurchase(purchase)
@@ -299,6 +327,19 @@ class BillingManager(
         return productDetails.subscriptionOfferDetails?.any { offer ->
             offer.pricingPhases.pricingPhaseList.any { it.priceAmountMicros == 0L }
         } ?: false
+    }
+
+    fun getProductDetails(productId: String): ProductDetails? {
+        return _products.value.find { it.productId == productId }
+    }
+
+    fun getPriceAmountMicros(productDetails: ProductDetails): Long? {
+        return productDetails.subscriptionOfferDetails
+            ?.lastOrNull()
+            ?.pricingPhases
+            ?.pricingPhaseList
+            ?.lastOrNull()
+            ?.priceAmountMicros
     }
 
     companion object {
