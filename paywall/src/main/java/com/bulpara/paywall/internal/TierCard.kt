@@ -1,6 +1,11 @@
 package com.bulpara.paywall.internal
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,6 +39,13 @@ import androidx.compose.ui.unit.sp
 
 private val GlassWhite = Color.White.copy(alpha = 0.15f)
 private val GlassWhiteSelected = Color.White.copy(alpha = 0.25f)
+
+private data class PriceBlockState(
+    val price: String,
+    val period: String,
+    val monthlyEquivalent: String?,
+    val trialPeriod: String?,
+)
 
 @Composable
 internal fun TierCard(
@@ -85,49 +97,62 @@ internal fun TierCard(
 
             Spacer(modifier = Modifier.height(Spacing.sm))
 
-            val priceFontSize = when {
-                price.length > 12 -> 16.sp
-                price.length > 8 -> 20.sp
-                else -> 24.sp
-            }
-            Text(
-                text = price,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                fontSize = priceFontSize,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                text = period,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.7f),
-            )
-
-            if (monthlyEquivalent != null) {
-                Text(
-                    text = "~$monthlyEquivalent",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.5f),
-                )
-            }
-
-            if (trialPeriod != null) {
-                Spacer(modifier = Modifier.height(Spacing.xs))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(CornerRadius.full))
-                        .background(accentColor.copy(alpha = 0.2f))
-                        .padding(horizontal = Spacing.sm, vertical = 2.dp),
-                ) {
+            AnimatedContent(
+                targetState = PriceBlockState(price, period, monthlyEquivalent, trialPeriod),
+                transitionSpec = {
+                    fadeIn(animationSpec = androidx.compose.animation.core.tween(200))
+                        .togetherWith(fadeOut(animationSpec = androidx.compose.animation.core.tween(150)))
+                        .using(SizeTransform(clip = false))
+                },
+                contentAlignment = Alignment.Center,
+                label = "price_block",
+            ) { state ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val priceFontSize = when {
+                        state.price.length > 12 -> 16.sp
+                        state.price.length > 8 -> 20.sp
+                        else -> 24.sp
+                    }
                     Text(
-                        text = "$trialPeriod free trial",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = accentColor,
+                        text = state.price,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = priceFontSize,
+                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
+                    Text(
+                        text = state.period,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.7f),
+                    )
+
+                    if (state.monthlyEquivalent != null) {
+                        Text(
+                            text = "~${state.monthlyEquivalent}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.5f),
+                        )
+                    }
+
+                    if (state.trialPeriod != null) {
+                        Spacer(modifier = Modifier.height(Spacing.xs))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(CornerRadius.full))
+                                .background(accentColor.copy(alpha = 0.2f))
+                                .padding(horizontal = Spacing.sm, vertical = 2.dp),
+                        ) {
+                            Text(
+                                text = "${state.trialPeriod} free trial",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = accentColor,
+                            )
+                        }
+                    }
                 }
             }
 
