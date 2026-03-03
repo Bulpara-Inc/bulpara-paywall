@@ -55,6 +55,7 @@ fun PremiumPromoCard(
 
     val products by billingManager.products.collectAsState()
     val annualProduct = products.find { it.productId == billingManager.productIds.annual }
+    val monthlyProduct = products.find { it.productId == billingManager.productIds.monthly }
 
     val subtitle = when {
         annualProduct == null -> null
@@ -65,7 +66,10 @@ fun PremiumPromoCard(
         }
         else -> {
             val price = billingManager.getFormattedPrice(annualProduct)
-            "$price/year"
+            val savings = monthlyProduct?.let {
+                billingManager.getSavingsPercent(annualProduct, it)
+            } ?: 0
+            if (savings > 0) "Save $savings% \u2022 $price/year" else "$price/year"
         }
     }
 
