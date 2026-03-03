@@ -29,6 +29,7 @@ data class PaywallUiState(
     val annualMonthlyEquivalent: String? = null,
     val annualHasFreeTrial: Boolean = false,
     val trialPeriod: String = "",
+    val savingsPercent: Int = 0,
     val ctaText: String = "Subscribe Now",
     val error: String? = null,
 )
@@ -64,6 +65,12 @@ class PaywallViewModel(
         val hasTrial = annual?.let { billingManager.hasFreeTrial(it) } ?: fallback.annualHasFreeTrial
         val trialPeriod = annual?.let { billingManager.getTrialPeriod(it) } ?: fallback.trialPeriod
 
+        val savingsPercent = if (annual != null && monthly != null) {
+            billingManager.getSavingsPercent(annual, monthly)
+        } else {
+            fallback.savingsPercent
+        }
+
         val ctaText = when {
             plan == PaywallPlan.ANNUAL && hasTrial -> "Start Free Trial"
             else -> "Subscribe Now"
@@ -81,6 +88,7 @@ class PaywallViewModel(
             annualMonthlyEquivalent = annualMonthly,
             annualHasFreeTrial = hasTrial,
             trialPeriod = trialPeriod,
+            savingsPercent = savingsPercent,
             ctaText = ctaText,
             error = (billingState as? BillingState.Error)?.message,
         )

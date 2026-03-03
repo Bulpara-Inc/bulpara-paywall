@@ -301,6 +301,26 @@ class BillingManager(
         } ?: false
     }
 
+    fun getSavingsPercent(annual: ProductDetails, monthly: ProductDetails): Int {
+        val monthlyMicros = monthly.subscriptionOfferDetails
+            ?.lastOrNull()
+            ?.pricingPhases
+            ?.pricingPhaseList
+            ?.lastOrNull()
+            ?.priceAmountMicros ?: return 0
+        val annualMicros = annual.subscriptionOfferDetails
+            ?.lastOrNull()
+            ?.pricingPhases
+            ?.pricingPhaseList
+            ?.lastOrNull()
+            ?.priceAmountMicros ?: return 0
+
+        val yearlyFromMonthly = monthlyMicros * 12
+        if (yearlyFromMonthly <= 0) return 0
+        val savings = (yearlyFromMonthly - annualMicros).toDouble() / yearlyFromMonthly * 100
+        return savings.toInt()
+    }
+
     companion object {
         private const val TAG = "BulparaPaywall"
         private const val RECONNECT_DELAY_MS = 3000L

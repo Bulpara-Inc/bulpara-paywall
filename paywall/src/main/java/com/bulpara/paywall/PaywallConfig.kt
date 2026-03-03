@@ -23,6 +23,7 @@ data class FallbackPricing(
     val annualPrice: String = "",
     val annualHasFreeTrial: Boolean = false,
     val trialPeriod: String = "",
+    val savingsPercent: Int = 0,
 )
 
 data class PaywallBranding(

@@ -222,7 +222,11 @@ private fun PaywallContent(
                 label = "Annual",
                 price = uiState.annualPrice,
                 period = "/year",
-                badge = if (uiState.annualHasFreeTrial) "${uiState.trialPeriod} free" else null,
+                badge = when {
+                    uiState.annualHasFreeTrial -> "${uiState.trialPeriod} free"
+                    uiState.savingsPercent > 0 -> "Save ${uiState.savingsPercent}%"
+                    else -> null
+                },
                 subtitle = uiState.annualMonthlyEquivalent,
                 isSelected = uiState.selectedPlan == PaywallPlan.ANNUAL,
                 onClick = { onSelectPlan(PaywallPlan.ANNUAL) },
